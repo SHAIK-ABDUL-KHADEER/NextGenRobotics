@@ -1,0 +1,35 @@
+from ultralytics import YOLO
+import cv2
+
+# Load your trained YOLOv8 model
+model = YOLO("best1.pt")  # make sure this path is correct
+
+# Open the webcam (0 is the default webcam)
+cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+    print("Cannot open webcam")
+    exit()
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("Failed to grab frame")
+        break
+
+    # Perform inference on the frame
+    results = model.predict(frame, conf=0.5)
+
+    # Plot the results on the frame
+    annotated_frame = results[0].plot()
+
+    # Display the annotated frame
+    cv2.imshow("YOLOv8 Detection", annotated_frame)
+
+    # Press 'q' to quit
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+# Release resources
+cap.release()
+cv2.destroyAllWindows()
