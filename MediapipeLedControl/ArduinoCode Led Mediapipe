@@ -1,0 +1,38 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+#define LED_PIN D1
+
+const char* ssid = "ESP_AP";
+const char* password = "12345678";
+
+ESP8266WebServer server(80);
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+
+  Serial.begin(115200);
+  
+  WiFi.softAP(ssid, password);
+  Serial.println("Access Point Started");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.softAPIP());
+
+  server.on("/on", []() {
+    digitalWrite(LED_PIN, HIGH);
+    server.send(200, "text/plain", "LED ON");
+  });
+
+  server.on("/off", []() {
+    digitalWrite(LED_PIN, LOW);
+    server.send(200, "text/plain", "LED OFF");
+  });
+
+  server.begin();
+  Serial.println("Server started");
+}
+
+void loop() {
+  server.handleClient();
+}
