@@ -1,0 +1,71 @@
+import speech_recognition as sr
+import serial
+import time
+import google.generativeai as genai
+
+# === CONFIGURE SERIAL PORT ===
+arduino = serial.Serial(port='COM7', baudrate=9600, timeout=1)
+time.sleep(2)  # Wait for NodeMCU to reset
+
+# === GOOGLE GEMINI API SETUP ===
+genai.configure(api_key="AIzaSyBi8loEUfLLqMQOApfCgSQYaX4SW8othlA")
+
+model = genai.GenerativeModel('gemini-1.5-flash')
+
+def get_intent_from_gemini(user_text):
+    prompt = f"""
+    You are a robot control assistant. Your job is to convert user commands into intents for robot movement.
+
+    Possible intents:
+    - "forward"
+    - "backward"
+    - "left"
+    - "right"
+    - "stop"
+
+    Respond with ONLY one of the intents above. No explanation.
+
+    Example:
+    User: "come here" → Intent: "forward"
+    User: "go back" → Intent: "backward"
+    User: "turn to your left" → Intent: "left"
+
+    Now user said: "{user_text}"
+    Intent:"""
+
+    response = model.generate_content(prompt)
+    return response.text.strip().lower()
+
+
+# === SPEECH RECOGNITION SETUP ===
+r = sr.Recognizer()
+print("🎤 Speak something like: 'come here', 'move back', 'turn left', etc.")
+
+while True:
+    try:
+        with sr.Microphone() as source:
+            print("🎙️ Listening...")
+            audio = r.listen(source, timeout=3)
+
+        user_command = r.recognize_google(audio)
+        print("✅ You said:", user_command)
+
+        # Get intent from Gemini
+        intent = get_intent_from_gemini(user_command)
+        print("🤖 Gemini Intent:", intent)
+
+        # Check if intent is valid
+        valid_intents = ['forward', 'backward', 'left', 'right', 'stop']
+        if intent in valid_intents:
+            arduino.write((intent + "\n").encode())
+            print(f"📤 Sent to NodeMCU: {intent}")
+        else:
+            print("❌ Unknown intent from Gemini")
+
+    except sr.WaitTimeoutError:
+        print("⌛ Timeout. Please speak again.")
+    except sr.UnknownValueError:
+        print("❗ Could not understand audio")
+    except KeyboardInterrupt:
+        print("🛑 Exiting...")
+        break
