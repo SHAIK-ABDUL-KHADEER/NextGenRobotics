@@ -1,92 +1,79 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 
-// Motor pins
+const char *ssid = "NodeMCU_AP_2";
+const char *password = "12345678";
+
+ESP8266WebServer server(80);
+
+// Motor Pins
 #define IN1 D1
 #define IN2 D2
 #define IN3 D3
 #define IN4 D4
 
-// AP credentials
-const char *ssid = "Control_AP";
-const char *password = "12345678";
+void moveForward() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  server.send(200, "text/plain", "Forward");
+}
 
-ESP8266WebServer server(80);
+void moveBackward() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  server.send(200, "text/plain", "Backward");
+}
+
+void moveLeft() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  server.send(200, "text/plain", "Left");
+}
+
+void moveRight() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  server.send(200, "text/plain", "Right");
+}
+
+void stopMove() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+  server.send(200, "text/plain", "Stop");
+}
 
 void setup() {
   Serial.begin(115200);
 
-  // Setup motor pins as output
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
 
-  stopMotors(); // Initialize to stopped
-
-  // Setup Access Point
   WiFi.softAP(ssid, password);
-  Serial.println("Access Point Started");
-  Serial.print("IP address: ");
+  Serial.println("AP started");
   Serial.println(WiFi.softAPIP());
 
-  // Handle root (control page)
-  server.on("/", []() {
-    server.send(200, "text/html", controlPage());
-  });
-
-  // Motor control endpoints
-  server.on("/forward", []() { forward(); server.send(200, "text/html", controlPage()); });
-  server.on("/backward", []() { backward(); server.send(200, "text/html", controlPage()); });
-  server.on("/left", []() { left(); server.send(200, "text/html", controlPage()); });
-  server.on("/right", []() { right(); server.send(200, "text/html", controlPage()); });
-  server.on("/stop", []() { stopMotors(); server.send(200, "text/html", controlPage()); });
+  server.on("/forward", moveForward);
+  server.on("/backward", moveBackward);
+  server.on("/left", moveLeft);
+  server.on("/right", moveRight);
+  server.on("/stop", stopMove);
 
   server.begin();
-  Serial.println("Web server started.");
+  Serial.println("Server started");
 }
 
 void loop() {
   server.handleClient();
-}
-
-// Motor movement functions
-void forward() {
-  digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
-}
-void backward() {
-  digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
-}
-void left() {
-  digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
-}
-void right() {
-  digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
-}
-void stopMotors() {
-  digitalWrite(IN1, LOW); digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW); digitalWrite(IN4, LOW);
-}
-
-// HTML control page
-String controlPage() {
-  return R"rawliteral(
-    <!DOCTYPE html><html><head><title>2-Wheeler Control</title>
-    <style>
-      button { width: 100px; height: 50px; font-size: 20px; margin: 10px; }
-    </style></head><body>
-    <h1>Control 2-Wheeler</h1>
-    <div>
-      <form action="/forward"><button>Forward</button></form>
-      <form action="/backward"><button>Backward</button></form>
-      <form action="/left"><button>Left</button></form>
-      <form action="/right"><button>Right</button></form>
-      <form action="/stop"><button>Stop</button></form>
-    </div>
-    </body></html>
-  )rawliteral";
 }
