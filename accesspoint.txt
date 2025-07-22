@@ -1,0 +1,61 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+
+const char *ssid = "NodeMCU_AP_1"; 
+const char *password = "12345678";  
+
+
+ESP8266WebServer server(80);  // Create a web server on port 80
+
+
+#define LED_PIN D0  // D0 (GPIO16)
+
+
+bool ledState = false;  // Variable to track LED state
+
+
+void handleOn() {
+    digitalWrite(LED_PIN, LOW);  // Turn LED ON (Active LOW)
+    ledState = true;
+    server.send(200, "text/plain", "LED is ON");
+}
+void handleOff() {
+    digitalWrite(LED_PIN, HIGH);  // Turn LED OFF
+    ledState = false;
+    server.send(200, "text/plain", "LED is OFF");
+}
+
+
+void handleStatus() {
+    String status = ledState ? "ON" : "OFF";
+    server.send(200, "text/plain", "LED Status: " + status);
+}
+
+
+void setup() {
+    Serial.begin(115200);
+   
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH);  // Ensure LED is OFF initially
+
+
+    WiFi.softAP(ssid, password);
+    Serial.println("Access Point started");
+    Serial.println(WiFi.softAPIP());  // Print AP IP Address (default: 192.168.4.1)
+
+
+    server.on("/on", handleOn);
+    server.on("/off", handleOff);
+    server.on("/status", handleStatus);
+   
+    server.begin();
+    Serial.println("HTTP server started");
+}
+
+
+void loop() {
+    server.handleClient();  // Handle incoming requests
+}
+
+
