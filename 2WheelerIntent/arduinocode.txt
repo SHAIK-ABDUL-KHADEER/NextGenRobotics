@@ -1,0 +1,222 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+// -------- WiFi Hotspot Details --------
+const char* ssid = "robot";
+const char* password = "12345678";
+
+// Motor pins
+#define IN1 D0
+#define IN2 D1
+#define IN3 D2
+#define IN4 D3
+#define ENA D5
+#define ENB D6
+
+ESP8266WebServer server(80);
+
+// -------- Motor Functions (CONTINUOUS) --------
+void stopMotor() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
+
+void moveForward() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+void moveBackward() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+void turnLeft() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+void turnRight() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+// -------- HTML Web Page --------
+String webpage = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Controller</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #020617;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 28px;
+    }
+
+    .controller {
+      display: grid;
+      grid-template-columns: 120px 120px 120px;
+      gap: 15px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button {
+      width: 120px;
+      height: 60px;
+      font-size: 18px;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      background: #22d3ee;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      background: #0ea5e9;
+    }
+
+    .empty {
+      visibility: hidden;
+    }
+
+    .status {
+      margin-top: 25px;
+      font-size: 18px;
+      color: #a5f3fc;
+      min-height: 25px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🤖 Robot Controller</h1>
+
+<div class="controller">
+  <div class="empty">X</div>
+  <button onclick="sendCmd('forward')">⬆ Forward</button>
+  <div class="empty">X</div>
+
+  <button onclick="sendCmd('left')">⬅ Left</button>
+  <button onclick="sendCmd('stop')">⏹ Stop</button>
+  <button onclick="sendCmd('right')">➡ Right</button>
+
+  <div class="empty">X</div>
+  <button onclick="sendCmd('backward')">⬇ Back</button>
+  <div class="empty">X</div>
+</div>
+
+<div class="status" id="statusText">Status: Ready ✅</div>
+
+<script>
+  function sendCmd(cmd) {
+    fetch('/' + cmd)
+      .then(res => res.text())
+      .then(data => {
+        document.getElementById("statusText").innerText = "Status: " + data;
+      })
+      .catch(err => {
+        document.getElementById("statusText").innerText = "Status: Error ❌";
+      });
+  }
+</script>
+
+</body>
+</html>
+)rawliteral";
+
+// -------- Setup --------
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+
+  analogWrite(ENA, 800);
+  analogWrite(ENB, 800);
+
+  stopMotor();
+
+  // ✅ Connect to Hotspot
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\n✅ Connected to Hotspot!");
+  Serial.print("📍 NodeMCU IP: ");
+  Serial.println(WiFi.localIP());
+
+  // ✅ Serve HTML Page
+  server.on("/", []() {
+    server.send(200, "text/html", webpage);
+  });
+
+  // ✅ Continuous Move Commands
+  server.on("/forward", []() {
+    moveForward();
+    server.send(200, "text/plain", "MOVING FORWARD ✅");
+  });
+
+  server.on("/backward", []() {
+    moveBackward();
+    server.send(200, "text/plain", "MOVING BACKWARD ✅");
+  });
+
+  server.on("/left", []() {
+    turnLeft();
+    server.send(200, "text/plain", "TURNING LEFT ✅");
+  });
+
+  server.on("/right", []() {
+    turnRight();
+    server.send(200, "text/plain", "TURNING RIGHT ✅");
+  });
+
+  // ✅ Optional STOP button (very useful for safety)
+  server.on("/stop", []() {
+    stopMotor();
+    server.send(200, "text/plain", "STOPPED ✅");
+  });
+
+  server.begin();
+  Serial.println("✅ Web Server Started!");
+}
+
+void loop() {
+  server.handleClient();
+}

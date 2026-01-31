@@ -1,0 +1,74 @@
+import speech_recognition as sr
+import requests
+import google.generativeai as genai
+import time
+
+# ✅ Put NodeMCU IP from Serial Monitor here
+NODEMCU_IP = "10.108.67.57"
+BASE_URL = f"http://{NODEMCU_IP}"
+
+# ✅ Gemini setup
+genai.configure(api_key="apikey")
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+def get_intent_from_gemini(user_text):
+    prompt = f"""
+You are a robot control assistant. Convert user commands into intents.
+
+Intents:
+- forward
+- backward
+- left
+- right
+- stop
+
+Reply ONLY with one intent word.
+User said: "{user_text}"
+Intent:
+"""
+    response = model.generate_content(prompt)
+    return response.text.strip().lower()
+
+def send_command(intent):
+    try:
+        url = f"{BASE_URL}/{intent}"
+        res = requests.get(url, timeout=2)
+        print(f"📤 Sent: {intent} | Response: {res.text}")
+    except Exception as e:
+        print("❌ Could not send command to NodeMCU")
+        print("Error:", e)
+
+# Speech Recognition
+r = sr.Recognizer()
+
+print("✅ Laptop + NodeMCU must be connected to SAME hotspot")
+print("🎤 Speak: forward/backward/left/right/stop")
+
+while True:
+    try:
+        with sr.Microphone() as source:
+            print("\n🎙️ Listening...")
+            r.adjust_for_ambient_noise(source, duration=0.6)
+            audio = r.listen(source, timeout=5)
+
+        user_command = r.recognize_google(audio)
+        print("✅ You said:", user_command)
+
+        intent = get_intent_from_gemini(user_command)
+        print("🧠 Gemini Intent:", intent)
+
+        valid = ["forward", "backward", "left", "right", "stop"]
+        if intent in valid:
+            send_command(intent)
+        else:
+            print("❌ Invalid intent:", intent)
+
+        time.sleep(0.2)
+
+    except sr.WaitTimeoutError:
+        print("⌛ Timeout. Speak again.")
+    except sr.UnknownValueError:
+        print("❗ Could not understand audio.")
+    except KeyboardInterrupt:
+        print("\n🛑 Exiting...")
+        break
