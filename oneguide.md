@@ -350,7 +350,7 @@ ESP8266WebServer server(80);
 const char* ssid = "Robot_Car";
 const char* password = "12345678";
 
-int motorSpeed = 800;   // default speed, range 0 - 1023
+int motorSpeed = 200;   // default speed, range 0 - 1023
 
 void forward() {
   digitalWrite(IN1, HIGH);
@@ -406,7 +406,7 @@ String webpage = R"(
   <button onclick="location.href='/backward'">Backward</button><br><br>
 
   <p>Speed Control</p>
-  <input type="range" min="0" max="1023" value="800"
+  <input type="range" min="0" max="255" value="200"
          onchange="fetch('/speed?value=' + this.value)">
 </body>
 </html>
